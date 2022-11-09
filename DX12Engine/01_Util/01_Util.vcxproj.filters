@@ -11,19 +11,14 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="elements_sorted_array.h">
+    <ClInclude Include="elements_sorted_array.hpp">
       <Filter>headers</Filter>
     </ClInclude>
-    <ClInclude Include="list_node.h">
+    <ClInclude Include="list_node.hpp">
       <Filter>headers</Filter>
     </ClInclude>
-    <ClInclude Include="chunk.h">
+    <ClInclude Include="chunk.hpp">
       <Filter>headers</Filter>
     </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="sources\chunk.cpp">
-      <Filter>sources</Filter>
-    </ClCompile>
   </ItemGroup>
 </Project>

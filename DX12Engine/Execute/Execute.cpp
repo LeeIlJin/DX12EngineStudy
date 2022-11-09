@@ -1,6 +1,8 @@
 ﻿// Execute.cpp : 애플리케이션에 대한 진입점을 정의합니다.
 //
 
+#include "01_Util/chunk.hpp"
+
 #include "framework.h"
 #include "Execute.h"
 
@@ -31,6 +33,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
     LoadStringW(hInstance, IDC_EXECUTE, szWindowClass, MAX_LOADSTRING);
     MyRegisterClass(hInstance);
+
+    chunk_base* a = new chunk<int>(3);
+    delete a;
 
     // 애플리케이션 초기화를 수행합니다:
     if (!InitInstance (hInstance, nCmdShow))

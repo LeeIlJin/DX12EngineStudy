@@ -19,12 +19,9 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="chunk.h" />
-    <ClInclude Include="elements_sorted_array.h" />
-    <ClInclude Include="list_node.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="sources\chunk.cpp" />
+    <ClInclude Include="chunk.hpp" />
+    <ClInclude Include="elements_sorted_array.hpp" />
+    <ClInclude Include="list_node.hpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
