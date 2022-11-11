@@ -41,11 +41,9 @@ protected:
 	}
 
 	bool next_null() { return (_next == nullptr); }
-	template<typename T>
-	T* next() { return static_cast<T*>(_next); }
 
-	template<typename T>
-	T* last() { if (_next == nullptr) { return static_cast<T*>(this); } return _next->last<T>(); }
+	list_node_base* next() { return _next; }
+	list_node_base* last() { if (_next == nullptr) { return this; } return _next->last(); }
 
 private:
 	list_node_base* _next;

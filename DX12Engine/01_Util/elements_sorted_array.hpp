@@ -6,8 +6,9 @@ class elements_sorted_array_base
 {
 protected:
 	elements_sorted_array_base(const size_t& array_length, const short& element_length, const size_t& elements_total_size)
-		:array_length(array_length), element_length(element_length), element_sizes(nullptr), array_use(0)
+		:array_length(array_length), element_length(element_length), elements_total_size(elements_total_size), element_sizes(nullptr), array_use(0)
 	{
+		element_sizes = new size_t[element_length];
 		buffer = malloc(array_length * elements_total_size);
 		buffer_i = (size_t)buffer;
 	}
@@ -18,7 +19,7 @@ protected:
 	}
 
 protected:
-	inline void init_element_sizes(size_t* p) { element_sizes = p; }
+	inline void init_element_sizes(size_t* p) { memcpy(element_sizes, p, sizeof(size_t) * element_length); }
 
 	inline size_t get_element_array_point(const short& element)
 	{
@@ -30,11 +31,17 @@ protected:
 		return buffer_i + pass;
 	}
 
+	inline size_t* get_element_size_array()
+	{
+		return element_sizes;
+	}
+
 public:
 	inline size_t get_array_length() { return array_length; }
 	inline size_t get_array_use() { return array_use; }
 	inline size_t get_element_length() { return element_length; }
 	inline size_t get_element_size(const short& element) { return element_sizes[element]; }
+	inline size_t get_elements_total_size() { return elements_total_size; }
 
 	//	p 에 element 인덱스에 맞는 배열을 복사하고 그 배열의 길이를 반환한다.
 	size_t copyTo(void* p, const short& element)
@@ -62,5 +69,6 @@ private:
 	size_t buffer_i;
 
 	const short element_length;
+	const size_t elements_total_size;
 	size_t* element_sizes;
 };
