@@ -1,3 +1,0 @@
-﻿  Execute.cpp
-C:\Users\user\Desktop\내 파일\01_MyGitProjects\DX12EngineStudy\DX12Engine\01_Util\chunk.hpp(130,1): warning C4267: '인수': 'size_t'에서 'const short'(으)로 변환하면서 데이터가 손실될 수 있습니다.
-  Execute.vcxproj -> C:\Users\user\Desktop\내 파일\01_MyGitProjects\DX12EngineStudy\DX12Engine\x64\Debug\Execute.exe
