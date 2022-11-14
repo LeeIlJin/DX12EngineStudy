@@ -144,6 +144,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="iamwindow.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="window_include.h" />
   </ItemGroup>
