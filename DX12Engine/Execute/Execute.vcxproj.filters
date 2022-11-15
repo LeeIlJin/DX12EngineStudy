@@ -13,19 +13,16 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="resources">
+      <UniqueIdentifier>{2349003b-47e7-4ed9-9dac-09d3adc42e63}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="framework.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
-    <ClInclude Include="targetver.h">
+    <ClInclude Include="Execute.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="Resource.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
-    <ClInclude Include="Execute.h">
-      <Filter>헤더 파일</Filter>
+      <Filter>resources</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -34,16 +31,16 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="Execute.rc">
-      <Filter>리소스 파일</Filter>
-    </ResourceCompile>
-  </ItemGroup>
-  <ItemGroup>
     <Image Include="small.ico">
-      <Filter>리소스 파일</Filter>
+      <Filter>resources</Filter>
     </Image>
     <Image Include="Execute.ico">
-      <Filter>리소스 파일</Filter>
+      <Filter>resources</Filter>
     </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="Execute.rc">
+      <Filter>resources</Filter>
+    </ResourceCompile>
   </ItemGroup>
 </Project>
