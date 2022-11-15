@@ -4,8 +4,10 @@
 #define MAIN_WINDOW L"MainWindow"
 #define MAIN_WINDOW_CLASS L"MainClass"
 
-
-
+/*
+https://www.braynzarsoft.net/viewtutorial/q16390-setting-up-directx-12-for-visual-studio-2015
+D3D12 세팅은 여기서 보세요.
+*/
 
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 /* WIN MAIN */

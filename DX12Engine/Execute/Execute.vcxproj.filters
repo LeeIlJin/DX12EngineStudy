@@ -7,6 +7,9 @@
     <Filter Include="sources">
       <UniqueIdentifier>{f9efe033-2e4f-4e5a-9599-c3af95cfb398}</UniqueIdentifier>
     </Filter>
+    <Filter Include="public">
+      <UniqueIdentifier>{302bc7bf-bc3c-4d4a-9a8b-4bfa3f2de15b}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Resource.h">
@@ -14,6 +17,9 @@
     </ClInclude>
     <ClInclude Include="Execute.h">
       <Filter>sources</Filter>
+    </ClInclude>
+    <ClInclude Include="..\d3dx12.h">
+      <Filter>public</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
