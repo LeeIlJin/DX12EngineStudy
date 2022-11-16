@@ -9,20 +9,25 @@ https://www.braynzarsoft.net/viewtutorial/q16390-setting-up-directx-12-for-visua
 D3D12 세팅은 여기서 보세요.
 */
 
-imwin32::wnd* mw = nullptr;
+HWND g_main;
+
+LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM w, LPARAM l)
+{
+    switch (msg)
+    {
+    case WM_DESTROY:
+        PostQuitMessage(0);
+        return 0;
+    }
+    return DefWindowProc(hwnd, msg, w, l);
+}
 
 void Initialize(HINSTANCE hInstance, LPWSTR lpCmdLine, int nCmdShow)
 {
-    imwin32::WNDCLASSDESC class_desc = imwin32::default_class_desc(MAIN_WINDOW_CLASS, hInstance);
-    class_desc.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_EXECUTE));
-    class_desc.hIconSm = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_SMALL));
+    g_main = imwin32::create_main_window(hInstance, WndProc, 1280, 720, L"TestMain");
 
-    imwin32::cls::register_(class_desc);
-
-    imwin32::WNDDESC window_desc = imwin32::main_window_desc(MAIN_WINDOW, MAIN_WINDOW_CLASS, hInstance);
-    mw = imwin32::wnd::create_(window_desc);
-    imwin32::show(mw->handle);
-    imwin32::update(mw->handle);
+    imwin32::show(g_main);
+    imwin32::update(g_main);
 
 }
 
@@ -30,17 +35,18 @@ void Loop()
 {
     int x, y, width, height;
 
-    imwin32::get_transform(mw, &x, &y, &width, &height);
-    int s = imwin32::get_show_state(mw);
+    imwin32::get_position(g_main, &x, &y);
+    imwin32::get_size(g_main, &width, &height);
+    int s = imwin32::get_show_state(g_main);
 
-    imwin32::set_position(mw, 220, 100);
-    imwin32::set_size(mw, 500, 500);
+    //imwin32::set_position(g_main, 220, 100);
+    //imwin32::set_size(g_main, 500, 500);
     int a = 0;
 }
 
 void Release()
 {
-    imwin32::release_all();
+    
 }
 
 /* WIN MAIN */
