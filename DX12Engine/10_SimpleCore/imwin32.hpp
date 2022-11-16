@@ -11,6 +11,7 @@
 #include <unordered_map>
 #include <string>
 #include <cassert>
+#include <functional>
 
 #define CHAR_MAX 100
 
@@ -29,35 +30,17 @@ namespace imwin32
 		HINSTANCE	hInstance;
 		LPVOID		lpParam;
 
+		WNDPROC		proc;
+
 		int x;
 		int y;
 		int nWidth;
 		int nHeight;
 	}WNDDESC;
 
-	/* WNDPROC 예제 입니다
-	LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
-	{
-		switch (message)
-		{
-		case WM_PAINT:
-		{
-			PAINTSTRUCT ps;
-			HDC hdc = BeginPaint(hWnd, &ps);
-			// TODO: 여기에 hdc를 사용하는 그리기 코드를 추가합니다...
-			EndPaint(hWnd, &ps);
-		}
-		break;
-		case WM_DESTROY:
-			PostQuitMessage(0);
-			break;
-		default:
-			return DefWindowProc(hWnd, message, wParam, lParam);
-		}
-		return 0;
-	}
-	*/
-
+	LRESULT CALLBACK improc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
+	LRESULT CALLBACK emptyproc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) { return LRESULT(); }
+	LRESULT CALLBACK mainproc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) { if (message == WM_DESTROY) { PostQuitMessage(0); } return 0; }
 
 	/* ======================================================================================================== */
 	/* Window Class */
@@ -134,7 +117,7 @@ namespace imwin32
 		wnd(HWND hwnd, const tagWNDDESC& desc)
 			:handle(hwnd), dwExStyle(desc.dwExStyle), lpClassName(desc.lpClassName), lpWindowName(desc.lpWindowName)
 			, dwStyle(desc.dwStyle), hWndParent(desc.hWndParent), hMenu(desc.hMenu), hInstance(desc.hInstance), lpParam(desc.lpParam)
-			, startX(desc.x), startY(desc.y), startWidth(desc.nWidth), startHeight(desc.nHeight)
+			, proc(desc.proc), startX(desc.x), startY(desc.y), startWidth(desc.nWidth), startHeight(desc.nHeight)
 		{}
 
 		~wnd()
@@ -171,22 +154,34 @@ namespace imwin32
 		const HINSTANCE	hInstance;
 		const LPVOID	lpParam;
 
+		const WNDPROC	proc;
+
 		const int startX;
 		const int startY;
 		const int startWidth;
 		const int startHeight;
+
 		const HWND handle;
 
 	private:
 		static std::unordered_map<std::wstring, wnd*> map;
+		static std::unordered_map<HWND, std::wstring> handle_map;
 	public:
 		static bool is_exist_(const wchar_t* name) { return map.count(name) > 0; }
+		static bool is_exist_(HWND h) { return handle_map.count(h) > 0; }
 		static wnd* get_(const wchar_t* name)
 		{
 			if (is_exist_(name) == false)
 				return nullptr;
 
 			return map[name];
+		}
+		static wnd* get_(HWND h)
+		{
+			if (is_exist_(h) == false)
+				return nullptr;
+
+			return map[handle_map[h]];
 		}
 		static wnd* create_(const WNDDESC& desc)
 		{
@@ -211,6 +206,9 @@ namespace imwin32
 				, desc.hInstance
 				, desc.lpParam
 			);
+			assert(hwnd != 0);
+
+			handle_map.insert({ hwnd, desc.lpWindowName });
 
 			wnd* n = new wnd(hwnd, desc);
 			map.insert({ desc.lpWindowName, n });
@@ -223,6 +221,7 @@ namespace imwin32
 
 			wnd* w = map[name];
 			map.erase(name);
+			handle_map.erase(w->handle);
 
 			if (w != nullptr)
 			{
@@ -239,9 +238,11 @@ namespace imwin32
 					delete it->second;
 			}
 			map.clear();
+			handle_map.clear();
 		}
 	};
 	std::unordered_map<std::wstring, wnd*> wnd::map = std::unordered_map<std::wstring, wnd*>();
+	std::unordered_map<HWND, std::wstring> wnd::handle_map = std::unordered_map<HWND, std::wstring>();
 
 	/* ======================================================================================================== */
 	/* Global Functions */
@@ -252,10 +253,8 @@ namespace imwin32
 		wnd::release_();
 	}
 
-	void show(HWND h) { ShowWindow(h, SW_NORMAL); }
-	void hide(HWND h) { ShowWindow(h, SW_HIDE); }
-	void mini(HWND h) { ShowWindow(h, SW_MINIMIZE); }
-	void maxi(HWND h) { ShowWindow(h, SW_MAXIMIZE); }
+	/* ========================================================================================================= */
+	/* GET */
 
 	void get_transform(HWND h, int* x, int* y, int* width = nullptr, int* height = nullptr)
 	{
@@ -268,21 +267,75 @@ namespace imwin32
 		if(height != nullptr)
 			*height = r.bottom - r.top;
 	}
+	inline void get_transform(wnd* w, int* x, int* y, int* width = nullptr, int* height = nullptr) { get_transform(w->handle, x, y, width, height); }
 
-	void get_title(HWND h, std::wstring& s)
+	void get_title(HWND h, std::wstring* s)
 	{
 		wchar_t wc[CHAR_MAX];
 		GetWindowText(h, wc, CHAR_MAX);
-		s.assign(wc);
+		s->clear();
+		s->assign(wc);
 	}
+	inline void get_title(wnd* w, std::wstring* s) { get_title(w->handle, s); }
+
+	int get_show_state(HWND h)
+	{
+		if (!IsWindowVisible(h))
+			return SW_HIDE;
+		else if (IsIconic(h))
+			return SW_MINIMIZE;
+		else if (IsZoomed(h))
+			return SW_MAXIMIZE;
+		else
+			return SW_SHOW;
+	}
+	inline int get_show_state(wnd* w) { return get_show_state(w->handle); }
+
+	/* ========================================================================================================= */
+	/* SET */
 
 	void set_position(HWND h, const int& x, const int& y) { SetWindowPos(h, 0, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER); }
 	void set_size(HWND h, const int& width, const int& height) { SetWindowPos(h, 0, 0, 0, width, height, SWP_NOMOVE | SWP_NOZORDER); }
 	void set_zorder(HWND h, const bool& top_true_or_bottom_false) { SetWindowPos(h, (top_true_or_bottom_false ? HWND_TOP : HWND_BOTTOM), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE); }
 	void set_title(HWND h, std::wstring& s) { SetWindowText(h, s.c_str()); }
 
-	void update(HWND h) { UpdateWindow(h); }
+	inline void set_position(wnd* w, const int& x, const int& y) { set_position(w->handle, x, y); }
+	inline void set_size(wnd* w, const int& width, const int& height) { set_size(w->handle, width, height); }
+	inline void set_zorder(wnd* w, const bool& top_true_or_bottom_false) { set_zorder(w->handle,top_true_or_bottom_false); }
+	inline void set_title(wnd* w, std::wstring& s) { set_title(w->handle, s); }
 
+	/* ========================================================================================================= */
+	/* STATE */
+
+	void show(HWND h) { ShowWindow(h, SW_NORMAL); }
+	void hide(HWND h) { ShowWindow(h, SW_HIDE); }
+	void mini(HWND h) { ShowWindow(h, SW_MINIMIZE); }
+	void maxi(HWND h) { ShowWindow(h, SW_MAXIMIZE); }
+	inline void show(wnd* w) { show(w->handle); }
+	inline void hide(wnd* w) { hide(w->handle); }
+	inline void mini(wnd* w) { mini(w->handle); }
+	inline void maxi(wnd* w) { maxi(w->handle); }
+
+	bool is_show(HWND h) { return get_show_state(h) == SW_SHOW; }
+	bool is_hide(HWND h) { return get_show_state(h) == SW_HIDE; }
+	bool is_mini(HWND h) { return get_show_state(h) == SW_MINIMIZE; }
+	bool is_maxi(HWND h) { return get_show_state(h) == SW_MAXIMIZE; }
+	inline bool is_show(wnd* w) { return get_show_state(w->handle) == SW_SHOW; }
+	inline bool is_hide(wnd* w) { return get_show_state(w->handle) == SW_HIDE; }
+	inline bool is_mini(wnd* w) { return get_show_state(w->handle) == SW_MINIMIZE; }
+	inline bool is_maxi(wnd* w) { return get_show_state(w->handle) == SW_MAXIMIZE; }
+
+	void update(HWND h) { UpdateWindow(h); }
+	inline void update(wnd* w) { update(w->handle); }
+
+	void enable(HWND h) { EnableWindow(h, TRUE); }
+	void disable(HWND h) { EnableWindow(h, FALSE); }
+	bool is_enable(HWND h) { return IsWindowEnabled(h); }
+	bool is_disable(HWND h) { return !IsWindowEnabled(h); }
+	inline void enable(wnd* w) { enable(w->handle); }
+	inline void disable(wnd* w) { disable(w->handle); }
+	inline bool is_enable(wnd* w) { return is_enable(w->handle); }
+	inline bool is_disable(wnd* w) { return is_disable(w->handle); }
 
 	/* ======================================================================================================== */
 	/* CLASS */
@@ -302,23 +355,22 @@ namespace imwin32
 		wndclsdesc->hIconSm = wndclsdesc->hIcon;
 		wndclsdesc->lpszMenuName = NULL;
 		wndclsdesc->hbrBackground = (HBRUSH)GetStockObject(WHITE_BRUSH);
+		wndclsdesc->lpfnWndProc = improc;
 
 		/* 남은 설정
 		UINT        style;
-		WNDPROC     lpfnWndProc;
 		HINSTANCE   hInstance;
 		LPCWSTR     lpszClassName;
 		*/
 	}
 
-	WNDCLASSDESC default_class_desc(const wchar_t* name, HINSTANCE hInstance, WNDPROC proc, int background_color = WHITE_BRUSH)
+	WNDCLASSDESC default_class_desc(const wchar_t* name, HINSTANCE hInstance, int background_color = WHITE_BRUSH)
 	{
 		WNDCLASSDESC cl;
 		desc_init(&cl);
 
 		cl.hbrBackground = (HBRUSH)GetStockObject(background_color);
 		cl.hInstance = hInstance;
-		cl.lpfnWndProc = proc;
 		cl.lpszClassName = name;
 		cl.style = CS_HREDRAW | CS_VREDRAW;
 
@@ -340,6 +392,8 @@ namespace imwin32
 		wnddesc->hMenu = (HMENU)NULL;
 		wnddesc->lpParam = NULL;
 
+		wnddesc->proc = emptyproc;
+
 		//	기본 설정임!
 		wnddesc->nWidth = 1280;
 		wnddesc->nHeight = 720;
@@ -352,7 +406,7 @@ namespace imwin32
 		*/
 	}
 
-	WNDDESC default_window_desc(const wchar_t* name, const wchar_t* class_name, HINSTANCE hInstance, DWORD style)
+	WNDDESC default_window_desc(const wchar_t* name, const wchar_t* class_name, HINSTANCE hInstance, DWORD style, WNDPROC proc = emptyproc)
 	{
 		WNDDESC wn;
 		desc_init(&wn);
@@ -361,14 +415,35 @@ namespace imwin32
 		wn.lpWindowName = name;
 		wn.hInstance = hInstance;
 		wn.dwStyle = style;
+		wn.proc = proc;
 
 		return wn;
 	}
 
 	WNDDESC main_window_desc(const wchar_t* name, const wchar_t* class_name, HINSTANCE hInstance)
 	{
-		return default_window_desc(name, class_name, hInstance, WS_CLIPSIBLINGS | WS_CLIPCHILDREN | WS_OVERLAPPEDWINDOW);
+		return default_window_desc(name, class_name, hInstance, WS_CLIPSIBLINGS | WS_CLIPCHILDREN | WS_OVERLAPPEDWINDOW, mainproc);
 	}
 
+
+
+	/* PROC */
+	LRESULT CALLBACK improc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+	{
+		wnd* w = wnd::get_(hWnd);
+		if (w != nullptr)
+			w->proc(hWnd, message, wParam, lParam);
+
+		switch (message)
+		{
+		case WM_DESTROY:
+			if (w != nullptr)
+				wnd::delete_(w->lpWindowName);
+			break;
+		default:
+			return DefWindowProc(hWnd, message, wParam, lParam);
+		}
+		return 0;
+	}
 
 }

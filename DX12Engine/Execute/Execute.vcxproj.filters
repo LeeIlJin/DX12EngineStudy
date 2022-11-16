@@ -21,6 +21,9 @@
     <ClInclude Include="..\d3dx12.h">
       <Filter>public</Filter>
     </ClInclude>
+    <ClInclude Include="..\DirectXInclude.h">
+      <Filter>public</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Image Include="small.ico">
