@@ -7,18 +7,30 @@
     <Filter Include="win32">
       <UniqueIdentifier>{7e9863d5-dfa5-4d9a-941a-c409a28dce1c}</UniqueIdentifier>
     </Filter>
+    <Filter Include="d3d12">
+      <UniqueIdentifier>{0c849263-78f3-4a7e-8156-3e58703d29cd}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
       <Filter>_pch</Filter>
     </ClInclude>
-    <ClInclude Include="imwin32.hpp">
+    <ClInclude Include="imwin32.h">
       <Filter>win32</Filter>
+    </ClInclude>
+    <ClInclude Include="imd3d.h">
+      <Filter>d3d12</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
       <Filter>_pch</Filter>
+    </ClCompile>
+    <ClCompile Include="imwin32.cpp">
+      <Filter>win32</Filter>
+    </ClCompile>
+    <ClCompile Include="imd3d.cpp">
+      <Filter>d3d12</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

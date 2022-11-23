@@ -21,7 +21,7 @@
     <ClInclude Include="..\d3dx12.h">
       <Filter>public</Filter>
     </ClInclude>
-    <ClInclude Include="..\DirectXInclude.h">
+    <ClInclude Include="..\Direct3DInclude.h">
       <Filter>public</Filter>
     </ClInclude>
   </ItemGroup>

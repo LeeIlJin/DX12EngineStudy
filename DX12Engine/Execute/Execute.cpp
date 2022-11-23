@@ -1,4 +1,5 @@
-﻿#include "Execute.h"
+﻿
+#include "Execute.h"
 
 /* 윈도우 이름 정의 */
 #define MAIN_WINDOW L"MainWindow"

@@ -136,7 +136,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="..\d3dx12.h" />
-    <ClInclude Include="..\DirectXInclude.h" />
+    <ClInclude Include="..\Direct3DInclude.h" />
     <ClInclude Include="Execute.h" />
     <ClInclude Include="Resource.h" />
   </ItemGroup>
@@ -149,6 +149,11 @@
   <ItemGroup>
     <Image Include="Execute.ico" />
     <Image Include="small.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\10_SimpleCore\10_SimpleCore.vcxproj">
+      <Project>{a190ad33-71d1-4b06-8367-a496003bbdaa}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

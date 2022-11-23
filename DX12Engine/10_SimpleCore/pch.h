@@ -8,6 +8,25 @@
 #define PCH_H
 
 // 여기에 미리 컴파일하려는 헤더 추가
+#include <SDKDDKVer.h>
 
+#define WIN32_LEAN_AND_MEAN             // 거의 사용되지 않는 내용을 Windows 헤더에서 제외합니다.
+
+// Windows 헤더 파일
+#include <windows.h>
+
+// C 런타임 헤더 파일입니다.
+#include <stdlib.h>
+#include <unordered_map>
+#include <string>
+#include <cassert>
+#include <functional>
+
+//	Direct3D 12
+#include <d3d12.h>
+#include <dxgi1_4.h>
+#include <D3Dcompiler.h>
+#include <DirectXMath.h>
+#include "d3dx12.h"
 
 #endif //PCH_H
