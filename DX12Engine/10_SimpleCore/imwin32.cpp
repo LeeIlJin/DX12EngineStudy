@@ -95,3 +95,68 @@ void imwin32::set_title(HWND h, std::wstring& s)
 	SetWindowText(h, s.c_str());
 }
 
+void imwin32::show(HWND h)
+{
+	ShowWindow(h, SW_NORMAL);
+}
+
+void imwin32::hide(HWND h)
+{
+	ShowWindow(h, SW_HIDE);
+}
+
+void imwin32::mini(HWND h)
+{
+	ShowWindow(h, SW_MINIMIZE);
+}
+
+void imwin32::maxi(HWND h)
+{
+	ShowWindow(h, SW_MAXIMIZE);
+}
+
+bool imwin32::is_show(HWND h)
+{
+	return get_show_state(h) == SW_SHOW;
+}
+
+bool imwin32::is_hide(HWND h)
+{
+	return get_show_state(h) == SW_HIDE;
+}
+
+bool imwin32::is_mini(HWND h)
+{
+	return get_show_state(h) == SW_MINIMIZE;
+}
+
+bool imwin32::is_maxi(HWND h)
+{
+	return get_show_state(h) == SW_MAXIMIZE;
+}
+
+void imwin32::update(HWND h)
+{
+	UpdateWindow(h);
+}
+
+void imwin32::enable(HWND h)
+{
+	EnableWindow(h, TRUE);
+}
+
+void imwin32::disable(HWND h)
+{
+	EnableWindow(h, FALSE);
+}
+
+bool imwin32::is_enable(HWND h)
+{
+	return IsWindowEnabled(h);
+}
+
+bool imwin32::is_disable(HWND h)
+{
+	return !IsWindowEnabled(h);
+}
+

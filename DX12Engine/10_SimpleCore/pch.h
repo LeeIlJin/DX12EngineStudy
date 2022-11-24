@@ -23,10 +23,6 @@
 #include <functional>
 
 //	Direct3D 12
-#include <d3d12.h>
-#include <dxgi1_4.h>
-#include <D3Dcompiler.h>
-#include <DirectXMath.h>
-#include "d3dx12.h"
+#include "Direct3DInclude.h"
 
 #endif //PCH_H

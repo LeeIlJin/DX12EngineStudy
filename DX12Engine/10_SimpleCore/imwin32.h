@@ -32,21 +32,21 @@ namespace imwin32
 	/* ========================================================================================================= */
 	/* STATE */
 
-	void show(HWND h) { ShowWindow(h, SW_NORMAL); }
-	void hide(HWND h) { ShowWindow(h, SW_HIDE); }
-	void mini(HWND h) { ShowWindow(h, SW_MINIMIZE); }
-	void maxi(HWND h) { ShowWindow(h, SW_MAXIMIZE); }
+	void show(HWND h);
+	void hide(HWND h);
+	void mini(HWND h);
+	void maxi(HWND h);
 
-	bool is_show(HWND h) { return get_show_state(h) == SW_SHOW; }
-	bool is_hide(HWND h) { return get_show_state(h) == SW_HIDE; }
-	bool is_mini(HWND h) { return get_show_state(h) == SW_MINIMIZE; }
-	bool is_maxi(HWND h) { return get_show_state(h) == SW_MAXIMIZE; }
+	bool is_show(HWND h);
+	bool is_hide(HWND h);
+	bool is_mini(HWND h);
+	bool is_maxi(HWND h);
 
-	void update(HWND h) { UpdateWindow(h); }
+	void update(HWND h);
 
-	void enable(HWND h) { EnableWindow(h, TRUE); }
-	void disable(HWND h) { EnableWindow(h, FALSE); }
-	bool is_enable(HWND h) { return IsWindowEnabled(h); }
-	bool is_disable(HWND h) { return !IsWindowEnabled(h); }
+	void enable(HWND h);
+	void disable(HWND h);
+	bool is_enable(HWND h);
+	bool is_disable(HWND h);
 
 }
