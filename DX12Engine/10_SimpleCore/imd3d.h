@@ -30,5 +30,15 @@
 
 namespace imd3d
 {
-	bool initialize_d3d();
+	static const UINT FrameCount = 2;
+
+	class IDirectX12
+	{
+	public:
+		
+		virtual void WaitForPreviousFrame() = 0;
+		virtual void PopulateCommandList() = 0;
+	};
+
+	IDirectX12* create(HWND window_handle, ComPtr<IDirectX12>& out_ptr);
 }
