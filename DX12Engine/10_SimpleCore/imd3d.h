@@ -38,7 +38,11 @@ namespace imd3d
 		
 		virtual void WaitForPreviousFrame() = 0;
 		virtual void PopulateCommandList() = 0;
+
+		virtual void Render(void(exe(void))) = 0;
+
+		virtual void Destroy() = 0;
 	};
 
-	IDirectX12* create(HWND window_handle, ComPtr<IDirectX12>& out_ptr);
+	bool create(HWND window_handle, IDirectX12** out_ptr, float r = 0.0f, float g = 0.2f, float b = 0.4f);
 }

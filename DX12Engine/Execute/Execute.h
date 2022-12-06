@@ -14,4 +14,5 @@
 
 //	Mine
 #include "10_SimpleCore/imwin32.h"
+#include "10_SimpleCore/imd3d.h"
 
