@@ -268,6 +268,7 @@ namespace imd3d
 		ThrowIfFailed(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_commandQueue)));
 
 
+		/* SWAP CHAIN */
 		// Describe and create the swap chain.
 		DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
 		swapChainDesc.BufferCount = FrameCount;
@@ -294,6 +295,7 @@ namespace imd3d
 		ThrowIfFailed(swapChain.As(&m_swapChain));
 		m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
 
+		/* Render Target View Descriptor */
 		// Create descriptor heaps.
 		{
 			// Describe and create a render target view (RTV) descriptor heap.
@@ -306,6 +308,7 @@ namespace imd3d
 			m_rtvDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 		}
 
+		/* Render Target View */
 		// Create frame resources.
 		{
 			CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart());
@@ -319,6 +322,7 @@ namespace imd3d
 			}
 		}
 
+		/* Command Allocator */
 		ThrowIfFailed(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_commandAllocator)));
 	}
 	

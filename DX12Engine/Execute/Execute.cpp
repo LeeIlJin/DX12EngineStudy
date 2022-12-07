@@ -13,6 +13,13 @@ D3D12 세팅은 여기서 보세요.
 HWND g_main;
 imd3d::IDirectX12* d3d = nullptr;
 
+template<UINT uid>
+class Test
+{
+public:
+    static UINT UID() { return uid; }
+};
+
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM w, LPARAM l)
 {
     switch (msg)
@@ -36,6 +43,7 @@ void Initialize(HINSTANCE hInstance, LPWSTR lpCmdLine, int nCmdShow)
     imwin32::show(g_main);
     imwin32::update(g_main);
 
+    
 }
 
 void Loop()
@@ -53,8 +61,7 @@ void Loop()
 
 void Release()
 {
-    d3d->Destroy();
-    delete d3d;
+    DESTROY(d3d);
 }
 
 /* WIN MAIN */

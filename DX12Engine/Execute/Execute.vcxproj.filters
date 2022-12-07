@@ -24,6 +24,9 @@
     <ClInclude Include="..\Direct3DInclude.h">
       <Filter>public</Filter>
     </ClInclude>
+    <ClInclude Include="..\PublicMacro.h">
+      <Filter>public</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Image Include="small.ico">

@@ -137,6 +137,7 @@
   <ItemGroup>
     <ClInclude Include="..\d3dx12.h" />
     <ClInclude Include="..\Direct3DInclude.h" />
+    <ClInclude Include="..\PublicMacro.h" />
     <ClInclude Include="Execute.h" />
     <ClInclude Include="Resource.h" />
   </ItemGroup>
