@@ -20,5 +20,8 @@
     <ClInclude Include="chunk.hpp">
       <Filter>headers</Filter>
     </ClInclude>
+    <ClInclude Include="archetype.hpp">
+      <Filter>headers</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

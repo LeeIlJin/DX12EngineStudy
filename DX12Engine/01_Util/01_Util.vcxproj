@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="archetype.hpp" />
     <ClInclude Include="chunk.hpp" />
     <ClInclude Include="elements_sorted_array.hpp" />
     <ClInclude Include="list_node.hpp" />

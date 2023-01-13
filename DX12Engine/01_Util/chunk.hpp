@@ -122,6 +122,19 @@ public:
 		return total_length;
 	}
 
+	size_t get_length()
+	{
+		size_t total_length = static_cast<chunk*>(last())->get_array_use();
+		total_length += ((get_count() - 1) * get_array_use());
+		return total_length;
+	}
+
+	template<typename T>
+	void add_data(T&& p, const size_t& length, const short& element)
+	{
+		
+	}
+
 protected:
 	//	새로 만들어진 next를 반환
 	virtual chunk* add_new_next()
