@@ -60,7 +60,7 @@
 
 
 
-class chunk : protected elements_sorted_array_base, protected list_node_base
+class chunk : private elements_sorted_array_base, private list_node_base
 {
 public:
 	chunk(const size_t& array_length, const short& element_length, const size_t& elements_total_size, size_t * element_size_array)
@@ -71,8 +71,7 @@ public:
 	virtual ~chunk() {}
 
 public:
-	template<typename T>
-	void input_data(T&& p, const size_t& length, const short& element)
+	void input_data(void*& p, const size_t& length, const short& element)
 	{
 		size_t remain = length;
 		size_t nextp = (size_t)p;
@@ -91,19 +90,39 @@ public:
 			else
 				c = static_cast<chunk*>(c->next());
 		}
-
-		delete p;
-		p = nullptr;
 	}
 
-	template<typename T>
-	size_t output_data(T*& p, const short& element)
+	void add_data(void**& p, const size_t& length)
 	{
+		size_t remain = length;
+		size_t p_use = 0;
+		chunk* c = this;
+		while (true)
+		{
+			size_t use = c->addFrom(p, remain, p_use);
+			remain -= use;
+			p_use += use;
+
+			if (remain == 0)
+				break;
+
+			if (c->next_null())
+				c = c->add_new_next();
+			else
+				c = static_cast<chunk*>(c->next());
+		}
+	}
+
+	size_t output_data(void*& p, const short& element)
+	{
+		if (p != nullptr)
+			delete p;
+
 		size_t total_length = 0;
 		{
 			total_length = static_cast<chunk*>(last())->get_array_use();
 			total_length += ((get_count() - 1) * get_array_use());
-			p = (T*)malloc(total_length * get_element_size(element));
+			p = malloc(total_length * get_element_size(element));
 		}
 
 		size_t nextp = (size_t)p;
@@ -129,10 +148,9 @@ public:
 		return total_length;
 	}
 
-	template<typename T>
-	void add_data(T&& p, const size_t& length, const short& element)
+	size_t get_element_length()
 	{
-		
+		return elements_sorted_array_base::get_element_length();
 	}
 
 protected:
