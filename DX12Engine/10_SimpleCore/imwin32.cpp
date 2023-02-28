@@ -3,8 +3,17 @@
 
 #define CHAR_MAX 100
 
-HWND imwin32::create_main_window(HINSTANCE hInstance, WNDPROC proc, int width, int height, const wchar_t* title, void* attach)
+static std::vector<HWND> window_array;
+
+typedef std::pair<LPCWSTR, HINSTANCE> CLASS_INFO;
+static std::vector<CLASS_INFO> class_array;
+
+
+HWND imwin32::create_default_window(HINSTANCE hInstance, WNDPROC proc, int width, int height, const wchar_t* title, void* attach)
 {
+	LPCWSTR class_name = L"DX12EngineMainClass";
+	class_array.push_back(CLASS_INFO(class_name, hInstance));
+
 	// Initialize the window class.
 	WNDCLASSEX windowClass = { 0 };
 	windowClass.cbSize = sizeof(WNDCLASSEX);
@@ -12,7 +21,7 @@ HWND imwin32::create_main_window(HINSTANCE hInstance, WNDPROC proc, int width, i
 	windowClass.lpfnWndProc = proc;
 	windowClass.hInstance = hInstance;
 	windowClass.hCursor = LoadCursor(NULL, IDC_ARROW);
-	windowClass.lpszClassName = L"DX12EngineMainClass";
+	windowClass.lpszClassName = class_name;
 	RegisterClassEx(&windowClass);
 
 	RECT windowRect = { 0, 0, static_cast<LONG>(width), static_cast<LONG>(height) };
@@ -21,7 +30,7 @@ HWND imwin32::create_main_window(HINSTANCE hInstance, WNDPROC proc, int width, i
 	// Create the window and store a handle to it.
 	HWND hwnd = CreateWindowEx(
 		WS_EX_APPWINDOW,
-		windowClass.lpszClassName,
+		class_name,
 		title,
 		WS_OVERLAPPEDWINDOW,
 		CW_USEDEFAULT,
@@ -33,7 +42,95 @@ HWND imwin32::create_main_window(HINSTANCE hInstance, WNDPROC proc, int width, i
 		hInstance,
 		attach);
 
+	window_array.push_back(hwnd);
+
 	return hwnd;
+}
+
+UINT imwin32::regist_window_class(HINSTANCE hInstance, WNDPROC proc, UINT cs_style, const wchar_t* name)
+{
+	class_array.push_back(CLASS_INFO(name, hInstance));
+
+	WNDCLASSEX windowClass = { 0 };
+	windowClass.cbSize = sizeof(WNDCLASSEX);
+	windowClass.style = cs_style;
+	windowClass.lpfnWndProc = proc;
+	windowClass.hInstance = hInstance;
+	windowClass.hCursor = LoadCursor(NULL, IDC_ARROW);
+	windowClass.lpszClassName = name;
+	RegisterClassEx(&windowClass);
+
+	return class_array.size() - 1;
+}
+
+HWND imwin32::create_window(HINSTANCE hInstance, const wchar_t* class_name, int width, int height, DWORD ws_style, const wchar_t* title, int x, int y, void* attach)
+{
+	RECT windowRect = { 0, 0, static_cast<LONG>(width), static_cast<LONG>(height) };
+	AdjustWindowRect(&windowRect, WS_OVERLAPPEDWINDOW, FALSE);
+
+	// Create the window and store a handle to it.
+	HWND hwnd = CreateWindowEx(
+		WS_EX_APPWINDOW,
+		class_name,
+		title,
+		ws_style,
+		x,
+		y,
+		windowRect.right - windowRect.left,
+		windowRect.bottom - windowRect.top,
+		nullptr,        // We have no parent window.
+		nullptr,        // We aren't using menus.
+		hInstance,
+		attach);
+
+	window_array.push_back(hwnd);
+
+	return hwnd;
+}
+
+HWND imwin32::create_window(UINT class_index, int width, int height, DWORD ws_style, const wchar_t* title, int x, int y, void* attach)
+{
+	if (class_array.size() < class_index)
+		return NULL;
+
+	CLASS_INFO info = class_array[class_index];
+	return imwin32::create_window(info.second, info.first, width, height, ws_style, title, x, y, attach);
+}
+
+void imwin32::unregist_window_class(HINSTANCE hInstance, const wchar_t* class_name)
+{
+	UnregisterClassW(class_name, hInstance);
+}
+
+void imwin32::unregist_window_class(UINT class_index)
+{
+	if (class_array.size() < class_index)
+		return;
+
+	CLASS_INFO info = class_array[class_index];
+	UnregisterClassW(info.first, info.second);
+}
+
+void imwin32::destroy_window(HWND handle)
+{
+	DestroyWindow(handle);
+}
+
+void imwin32::clean()
+{
+	for (UINT i = 0; i < window_array.size(); i++)
+	{
+		HWND handle = window_array[i];
+		DestroyWindow(handle);
+	}
+	window_array.clear();
+
+	for (UINT i = 0; i < class_array.size(); i++)
+	{
+		CLASS_INFO info = class_array[i];
+		UnregisterClassW(info.first, info.second);
+	}
+	class_array.clear();
 }
 
 void imwin32::get_position(HWND h, int* x, int* y)

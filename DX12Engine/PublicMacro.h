@@ -3,7 +3,7 @@
 #define DELETE(p) if(p != nullptr){ delete p; p = nullptr; }
 #define DELETE_ARR(p) if(p != nullptr){ delete[] p; p = nullptr; }
 #define DESTROY(p) if(p != nullptr){ p->Destroy(); delete p; p = nullptr; }
-#define RELEASE(p) if(p != nullptr){ p->Release(); delete p; p = nullptr; }
+#define RELEASE(p) if(p != nullptr){ p->Release(); p = nullptr; }
 
 #define STR(a) #a
 #define WSTR(a) L#a

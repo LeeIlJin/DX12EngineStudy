@@ -5,7 +5,17 @@ namespace imwin32
 	/* ======================================================================================================== */
 	/* Global Functions */
 
-	HWND create_main_window(HINSTANCE hInstance, WNDPROC proc, int width, int height, const wchar_t* title, void* attach = nullptr);
+	HWND create_default_window(HINSTANCE hInstance, WNDPROC proc, int width, int height, const wchar_t* title, void* attach = nullptr);
+	UINT regist_window_class(HINSTANCE hInstance, WNDPROC proc, UINT cs_style, const wchar_t* name);
+	HWND create_window(HINSTANCE hInstance, const wchar_t* class_name, int width, int height, DWORD ws_style,const wchar_t* title, int x = CW_USEDEFAULT, int y = CW_USEDEFAULT, void* attach = nullptr);
+	HWND create_window(UINT class_index, int width, int height, DWORD ws_style, const wchar_t* title, int x = CW_USEDEFAULT, int y = CW_USEDEFAULT, void* attach = nullptr);
+
+	void unregist_window_class(HINSTANCE hInstance, const wchar_t* class_name);
+	void unregist_window_class(UINT class_index);
+
+	void destroy_window(HWND handle);
+
+	void clean();
 
 	/* ========================================================================================================= */
 	/* GET */

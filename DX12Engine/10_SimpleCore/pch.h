@@ -29,4 +29,6 @@ using namespace Microsoft::WRL;
 //	Direct3D 12
 #include "Direct3DInclude.h"
 
+#include "ImGui/imgui_helper.hpp"
+
 #endif //PCH_H

@@ -30,16 +30,16 @@
 
 namespace imd3d
 {
-	static const UINT FrameCount = 2;
+	static const UINT FrameCount = 3;
 
 	class IDirectX12
 	{
 	public:
-		
-		virtual void WaitForPreviousFrame() = 0;
-		virtual void PopulateCommandList() = 0;
+		virtual void WaitForLastSubmittedFrame() = 0;
 
+		virtual void FrameStart() = 0;
 		virtual void Render(void(exe(void))) = 0;
+		virtual void Resize(UINT width, UINT height) = 0;
 
 		virtual void Destroy() = 0;
 	};

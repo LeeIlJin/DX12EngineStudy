@@ -20,14 +20,29 @@ public:
     static UINT UID() { return uid; }
 };
 
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM w, LPARAM l)
 {
+    if (ImGui_ImplWin32_WndProcHandler(hwnd, msg, w, l))
+        return true;
+
     switch (msg)
     {
+    case WM_SIZE:
+        if (d3d != NULL && w != SIZE_MINIMIZED)
+        {
+            d3d->Resize((UINT)LOWORD(l), (UINT)HIWORD(l));
+        }
+        return 0;
+
     case WM_DESTROY:
         PostQuitMessage(0);
         return 0;
 
+    case WM_SYSCOMMAND:
+        if ((w & 0xfff0) == SC_KEYMENU) // Disable ALT application menu
+            return 0;
+        break;
     case WM_PAINT:
         d3d->Render(NULL);
         break;
@@ -37,7 +52,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM w, LPARAM l)
 
 void Initialize(HINSTANCE hInstance, LPWSTR lpCmdLine, int nCmdShow)
 {
-    g_main = imwin32::create_main_window(hInstance, WndProc, 1280, 720, L"TestMain");
+    g_main = imwin32::create_default_window(hInstance, WndProc, 1280, 720, L"TestMain");
     imd3d::create(g_main, &d3d);
 
     imwin32::show(g_main);
@@ -62,6 +77,7 @@ void Loop()
 void Release()
 {
     DESTROY(d3d);
+    imwin32::clean();
 }
 
 /* WIN MAIN */
@@ -79,18 +95,22 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     memset(&msg, 0, sizeof(MSG));
     
     // 기본 메시지 루프입니다:
-    while (true)
+    bool done = false;
+    while (!done)
     {
-        if (PeekMessage(&msg, NULL, 0U, 0U, PM_REMOVE))
+        while (::PeekMessage(&msg, NULL, 0U, 0U, PM_REMOVE))
         {
+            ::TranslateMessage(&msg);
+            ::DispatchMessage(&msg);
             if (msg.message == WM_QUIT)
-                break;
-
-            TranslateMessage(&msg);
-            DispatchMessage(&msg);
+                done = true;
         }
-        else
-            Loop();
+        if (done)
+            break;
+
+        d3d->FrameStart();
+        Loop();
+        d3d->Render(NULL);
     }
 
     Release();

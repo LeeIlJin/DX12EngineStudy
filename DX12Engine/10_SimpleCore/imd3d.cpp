@@ -5,8 +5,15 @@
 
 #include <stdexcept>
 
+
+
+#if defined(_DEBUG)
+
+#include <dxgidebug.h>
+#pragma comment(lib, "dxguid.lib")
+
+
 // Assign a name to the object to aid with debugging.
-#if defined(_DEBUG) || defined(DBG)
 inline void SetName(ID3D12Object* pObject, LPCWSTR name)
 {
 	pObject->SetName(name);
@@ -20,6 +27,7 @@ inline void SetNameIndexed(ID3D12Object* pObject, LPCWSTR name, UINT index)
 	}
 	
 }
+
 #else
 inline void SetName(ID3D12Object*, LPCWSTR)
 {
@@ -68,6 +76,12 @@ void ThrowIfFailed(HRESULT hr)
 
 namespace imd3d
 {
+	struct FrameContext
+	{
+		ComPtr<ID3D12CommandAllocator>	CommandAllocator;
+		UINT64							FenceValue = 0;
+	};
+
 	class DirectX12 : public IDirectX12
 	{
 	public:
@@ -75,15 +89,21 @@ namespace imd3d
 		virtual ~DirectX12();
 
 	public:
-		virtual void WaitForPreviousFrame();
-		virtual void PopulateCommandList();
+		virtual void WaitForLastSubmittedFrame();
+
+		virtual void FrameStart();
 		virtual void Render(void(exe(void)));
+		virtual void Resize(UINT width, UINT height);
 		virtual void Destroy();
 
 	private:
-		inline void Init_Pipeline();
-		inline void Init_Assets();
-		inline void Init_Contexts();
+		inline void Initialize();
+		inline void CreateRenderTarget();
+
+		inline void CleanDevice();
+		inline void CleanRenderTarget();
+
+		inline FrameContext* WaitForNextFrameResources();
 
 		// Helper function for acquiring the first available hardware adapter that supports Direct3D 12.
 		// If no such adapter can be found, *ppAdapter will be set to nullptr.
@@ -92,31 +112,35 @@ namespace imd3d
 	private:
 		/* Pipeline */
 		ComPtr<ID3D12Device> m_device;
-		ComPtr<IDXGISwapChain3> m_swapChain;
-		ComPtr<ID3D12CommandQueue> m_commandQueue;
-		ComPtr<ID3D12CommandAllocator> m_commandAllocator;
+		ComPtr<IDXGISwapChain3> m_swap_chain;
+		HANDLE m_swap_chain_waitable_object;
 
 		/* Descriptor Heaps */
-		ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
-		UINT m_rtvDescriptorSize;
+		ComPtr<ID3D12DescriptorHeap> m_rtv_heap;
+		ComPtr<ID3D12DescriptorHeap> m_srv_heap;
+		UINT m_rtv_descriptor_size;
+
+		ComPtr<ID3D12CommandQueue> m_command_queue;
+		ComPtr<ID3D12GraphicsCommandList> m_command_list;
 
 		//ComPtr<ID3D12DescriptorHeap> m_dsvHeap;
 		//ComPtr<ID3D12DescriptorHeap> m_cbvSrvHeap;
 		//ComPtr<ID3D12DescriptorHeap> m_samplerHeap;
 
 		/* Resources */
-		ComPtr<ID3D12Resource> m_renderTargets[FrameCount];
+		ComPtr<ID3D12Resource> m_render_target_resources[FrameCount];
+		D3D12_CPU_DESCRIPTOR_HANDLE m_render_target_descriptors[FrameCount];
 
 		/* Assets */
-		ComPtr<ID3D12RootSignature> m_rootSignature;
-		ComPtr<ID3D12PipelineState> m_pipelineState;
-		ComPtr<ID3D12GraphicsCommandList> m_commandList;
+		//ComPtr<ID3D12RootSignature> m_root_signature;
+		//ComPtr<ID3D12PipelineState> m_pipeline_state;
 
 		/* For Shync */
-		UINT m_frameIndex;
+		FrameContext m_frame_contexts[FrameCount];
+		UINT m_frame_index;
 		ComPtr<ID3D12Fence> m_fence;
-		HANDLE m_fenceEvent;
-		UINT64 m_fenceValue;
+		HANDLE m_fence_event;
+		UINT64 m_fence_last_signaled_value;
 		
 		/* Window */
 		HWND m_hwnd;
@@ -136,17 +160,32 @@ namespace imd3d
 		//ComPtr<ID3D12Resource> m_vertexBuffer;
 		//D3D12_VERTEX_BUFFER_VIEW m_vertexBufferView;
 
-		const float m_clearColor[4];
+		const float m_clear_color[4];
 	};
 
-	DirectX12::DirectX12(HWND window_handle, float r, float g, float b) : m_clearColor{ r,g,b,1.0f }
-		, m_rtvDescriptorSize(0), m_frameIndex(0), m_fenceEvent(NULL), m_fenceValue(0), m_hwnd(window_handle)
+	DirectX12::DirectX12(HWND window_handle, float r, float g, float b) : m_clear_color{ r,g,b,1.0f }, m_hwnd(window_handle)
 	{
 		imwin32::get_size(m_hwnd, &m_width, &m_height);
 
-		this->Init_Pipeline();
-		this->Init_Assets();
-		this->Init_Contexts();
+		this->Initialize();
+
+		// Setup Dear ImGui context
+		IMGUI_CHECKVERSION();
+		ImGui::CreateContext();
+		ImGuiIO& io = ImGui::GetIO(); (void)io;
+		//io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+		//io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+
+		// Setup Dear ImGui style
+		ImGui::StyleColorsDark();
+		//ImGui::StyleColorsLight();
+
+		// Setup Platform/Renderer backends
+		ImGui_ImplWin32_Init(window_handle);
+		ImGui_ImplDX12_Init(m_device.Get(), FrameCount,
+			DXGI_FORMAT_R8G8B8A8_UNORM, m_srv_heap.Get(),
+			m_srv_heap->GetCPUDescriptorHandleForHeapStart(),
+			m_srv_heap->GetGPUDescriptorHandleForHeapStart());
 	}
 
 	DirectX12::~DirectX12()
@@ -155,76 +194,99 @@ namespace imd3d
 	}
 
 	/* PUBLIC ============================================================================== */
-	void DirectX12::WaitForPreviousFrame()
+
+	void DirectX12::WaitForLastSubmittedFrame()
 	{
-		// WAITING FOR THE FRAME TO COMPLETE BEFORE CONTINUING IS NOT BEST PRACTICE.
-		// This is code implemented as such for simplicity. The D3D12HelloFrameBuffering
-		// sample illustrates how to use fences for efficient resource usage and to
-		// maximize GPU utilization.
+		FrameContext* frameCtx = &m_frame_contexts[m_frame_index % FrameCount];
 
-		// Signal and increment the fence value.
-		const UINT64 fence = m_fenceValue;
-		ThrowIfFailed(m_commandQueue->Signal(m_fence.Get(), fence));
-		m_fenceValue++;
+		UINT64 fenceValue = frameCtx->FenceValue;
+		if (fenceValue == 0)
+			return; // No fence was signaled
 
-		// Wait until the previous frame is finished.
-		if (m_fence->GetCompletedValue() < fence)
-		{
-			ThrowIfFailed(m_fence->SetEventOnCompletion(fence, m_fenceEvent));
-			WaitForSingleObject(m_fenceEvent, INFINITE);
-		}
+		frameCtx->FenceValue = 0;
+		if (m_fence->GetCompletedValue() >= fenceValue)
+			return;
 
-		m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
+		m_fence->SetEventOnCompletion(fenceValue, m_fence_event);
+		WaitForSingleObject(m_fence_event, INFINITE);
 	}
 
-	void DirectX12::PopulateCommandList()
+	void DirectX12::FrameStart()
 	{
-		// Command list allocators can only be reset when the associated 
-		// command lists have finished execution on the GPU; apps should use 
-		// fences to determine GPU execution progress.
-		ThrowIfFailed(m_commandAllocator->Reset());
+		// Start the Dear ImGui frame
+		ImGui_ImplDX12_NewFrame();
+		ImGui_ImplWin32_NewFrame();
+		ImGui::NewFrame();
 
-		// However, when ExecuteCommandList() is called on a particular command 
-		// list, that command list can then be reset at any time and must be before 
-		// re-recording.
-		ThrowIfFailed(m_commandList->Reset(m_commandAllocator.Get(), m_pipelineState.Get()));
-
-		// Indicate that the back buffer will be used as a render target.
-		{
-			const CD3DX12_RESOURCE_BARRIER crb_temp = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
-			m_commandList->ResourceBarrier(1, &crb_temp);
-		}
-
-		CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_frameIndex, m_rtvDescriptorSize);
-
-		// Record commands.
-		m_commandList->ClearRenderTargetView(rtvHandle, m_clearColor, 0, nullptr);
-
-		// Indicate that the back buffer will now be used to present.
-		{
-			const CD3DX12_RESOURCE_BARRIER crb_temp = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
-			m_commandList->ResourceBarrier(1, &crb_temp);
-		}
-
-		ThrowIfFailed(m_commandList->Close());
 	}
 
 	void DirectX12::Render(void(exe(void)))
 	{
-		PopulateCommandList();
+		ImGui::Render();
 
-		ID3D12CommandList* ppCommandLists[] = { m_commandList.Get() };
-		m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+		FrameContext* frameCtx = WaitForNextFrameResources();
+		UINT backBufferIdx = m_swap_chain->GetCurrentBackBufferIndex();
+		frameCtx->CommandAllocator->Reset();
 
-		ThrowIfFailed(m_swapChain->Present(1, 0));
+		D3D12_RESOURCE_BARRIER barrier = {};
+		barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+		barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+		barrier.Transition.pResource = m_render_target_resources[backBufferIdx].Get();
+		barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+		barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
+		barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
+		m_command_list->Reset(frameCtx->CommandAllocator.Get(), NULL);
+		m_command_list->ResourceBarrier(1, &barrier);
 
-		WaitForPreviousFrame();
+		// Render Dear ImGui graphics
+		const float clear_color_with_alpha[4] = { m_clear_color[0] * m_clear_color[3], m_clear_color[1] * m_clear_color[3], m_clear_color[2] * m_clear_color[3], m_clear_color[3] };
+		m_command_list->ClearRenderTargetView(m_render_target_descriptors[backBufferIdx], clear_color_with_alpha, 0, NULL);
+		m_command_list->OMSetRenderTargets(1, &m_render_target_descriptors[backBufferIdx], FALSE, NULL);
+		m_command_list->SetDescriptorHeaps(1, &m_srv_heap);
+		ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), m_command_list.Get());
+		barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+		barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
+		m_command_list->ResourceBarrier(1, &barrier);
+		m_command_list->Close();
+
+		ID3D12CommandList* temp_command_list = m_command_list.Get();
+		m_command_queue->ExecuteCommandLists(1, (ID3D12CommandList* const*)&temp_command_list);
+
+		//m_swap_chain->Present(1, 0); // Present with vsync
+		m_swap_chain->Present(0, 0); // Present without vsync
+
+		UINT64 fenceValue = m_fence_last_signaled_value + 1;
+		m_command_queue->Signal(m_fence.Get(), fenceValue);
+		m_fence_last_signaled_value = fenceValue;
+		frameCtx->FenceValue = fenceValue;
+	}
+
+	void DirectX12::Resize(UINT width, UINT height)
+	{
+		if (m_device == NULL)
+			return;
+
+		m_width = static_cast<int>(width);
+		m_height = static_cast<int>(height);
+
+		WaitForLastSubmittedFrame();
+		CleanRenderTarget();
+
+		ThrowIfFailed(m_swap_chain->ResizeBuffers(0, width, height, DXGI_FORMAT_UNKNOWN, DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT));
+
+		CreateRenderTarget();
 	}
 
 	void DirectX12::Destroy()
 	{
-		WaitForPreviousFrame();
-		CloseHandle(m_fenceEvent);
+		WaitForLastSubmittedFrame();
+
+		// Cleanup
+		ImGui_ImplDX12_Shutdown();
+		ImGui_ImplWin32_Shutdown();
+		ImGui::DestroyContext();
+
+		CleanDevice();
 	}
 
 
@@ -232,128 +294,265 @@ namespace imd3d
 
 	/* PRIVATE ============================================================================= */
 
-	inline void DirectX12::Init_Pipeline()
+	inline void DirectX12::Initialize()
 	{
-		UINT dxgiFactoryFlags = 0;
+		UINT dxgi_factory_flags = 0;
 
 		//	디버그 일경우 
 #if defined(_DEBUG)
-		// Enable the debug layer (requires the Graphics Tools "optional feature").
-		// NOTE: Enabling the debug layer after device creation will invalidate the active device.
-		{
-			ComPtr<ID3D12Debug> debugController;
-			if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))))
-			{
-				debugController->EnableDebugLayer();
-
-				// Enable additional debug layers.
-				dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
-			}
-		}
+		ComPtr<ID3D12Debug> dx12_debug = NULL;
+		if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&dx12_debug))))
+			dx12_debug->EnableDebugLayer();
 #endif
 		/* FACTORY */
 		ComPtr<IDXGIFactory4> factory;
-		ThrowIfFailed(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&factory)));
+		ThrowIfFailed(CreateDXGIFactory2(dxgi_factory_flags, IID_PPV_ARGS(&factory)));
 
 		/* DEVICE */
-		ComPtr<IDXGIAdapter1> hardwareAdapter;
-		GetHardwareAdapter(factory.Get(), &hardwareAdapter, true);
-		ThrowIfFailed(D3D12CreateDevice(hardwareAdapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&m_device)));
-		
+		//IDXGIAdapter1* hardware_adapter;
+		//GetHardwareAdapter(factory.Get(), &hardware_adapter, true);
+		ThrowIfFailed(D3D12CreateDevice(NULL, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&m_device)));
 
-		/* COMMAND QUEUE */
-		D3D12_COMMAND_QUEUE_DESC queueDesc = {};
-		queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
-		queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
-		ThrowIfFailed(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_commandQueue)));
-
-
-		/* SWAP CHAIN */
-		// Describe and create the swap chain.
-		DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
-		swapChainDesc.BufferCount = FrameCount;
-		swapChainDesc.Width = m_width;
-		swapChainDesc.Height = m_height;
-		swapChainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-		swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-		swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-		swapChainDesc.SampleDesc.Count = 1;
-
-		ComPtr<IDXGISwapChain1> swapChain;
-		ThrowIfFailed(factory->CreateSwapChainForHwnd(
-			m_commandQueue.Get(),        // Swap chain needs the queue so that it can force a flush on it.
-			m_hwnd,
-			&swapChainDesc,
-			nullptr,
-			nullptr,
-			&swapChain
-		));
-
-		// This sample does not support fullscreen transitions.
-		ThrowIfFailed(factory->MakeWindowAssociation(m_hwnd, DXGI_MWA_NO_ALT_ENTER));
-
-		ThrowIfFailed(swapChain.As(&m_swapChain));
-		m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
-
-		/* Render Target View Descriptor */
-		// Create descriptor heaps.
+#if defined(_DEBUG)
+		if (dx12_debug != NULL)
 		{
-			// Describe and create a render target view (RTV) descriptor heap.
-			D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
-			rtvHeapDesc.NumDescriptors = FrameCount;
-			rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-			rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-			ThrowIfFailed(m_device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&m_rtvHeap)));
-
-			m_rtvDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+			ComPtr<ID3D12InfoQueue> info_queue = NULL;
+			m_device->QueryInterface(IID_PPV_ARGS(&info_queue));
+			info_queue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, true);
+			info_queue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, true);
+			info_queue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, true);
+			info_queue->Release();
+			dx12_debug->Release();
 		}
+#endif
 
-		/* Render Target View */
-		// Create frame resources.
+		/* RTV ( RENDER TARGET VIEW )*/
 		{
-			CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart());
+			D3D12_DESCRIPTOR_HEAP_DESC desc = {};
+			desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+			desc.NumDescriptors = FrameCount;
+			desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+			desc.NodeMask = 1;
+			//ThrowIfFailed(m_device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&m_rtv_heap)));
 
-			// Create a RTV for each frame.
-			for (UINT n = 0; n < FrameCount; n++)
+			if (m_device == NULL)
+				int a = 10;
+
+			HRESULT hr = m_device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&m_rtv_heap));
+			if (FAILED(hr))
 			{
-				ThrowIfFailed(m_swapChain->GetBuffer(n, IID_PPV_ARGS(&m_renderTargets[n])));
-				m_device->CreateRenderTargetView(m_renderTargets[n].Get(), nullptr, rtvHandle);
-				rtvHandle.Offset(1, m_rtvDescriptorSize);
+				return;
+			}
+
+			m_rtv_descriptor_size = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+
+			D3D12_CPU_DESCRIPTOR_HANDLE rtv_handle = m_rtv_heap->GetCPUDescriptorHandleForHeapStart();
+			for (UINT i = 0; i < FrameCount; i++)
+			{
+				m_render_target_descriptors[i] = rtv_handle;
+				rtv_handle.ptr += m_rtv_descriptor_size;
 			}
 		}
 
-		/* Command Allocator */
-		ThrowIfFailed(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_commandAllocator)));
-	}
-	
-	inline void DirectX12::Init_Assets()
-	{
-		// Create the command list.
-		ThrowIfFailed(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_commandAllocator.Get(), nullptr, IID_PPV_ARGS(&m_commandList)));
+		/* SRV ( SHADER RESOURCE VIEW ) */
+		{
+			D3D12_DESCRIPTOR_HEAP_DESC desc = {};
+			desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+			desc.NumDescriptors = 1;
+			desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+			ThrowIfFailed(m_device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&m_srv_heap)));
+		}
 
-		// Command lists are created in the recording state, but there is nothing
-		// to record yet. The main loop expects it to be closed, so close it now.
-		ThrowIfFailed(m_commandList->Close());
+		/* COMMAND QUEUE */
+		{
+			D3D12_COMMAND_QUEUE_DESC desc = {};
+			desc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
+			desc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
+			desc.NodeMask = 1;
+			ThrowIfFailed(m_device->CreateCommandQueue(&desc, IID_PPV_ARGS(&m_command_queue)));
+		}
 
-		// Create synchronization objects.
+		/* COMMAND ALLOCATOR */
+		{
+			for (UINT i = 0; i < FrameCount; i++)
+				ThrowIfFailed(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_frame_contexts[i].CommandAllocator)));
+
+
+			ThrowIfFailed(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_frame_contexts[0].CommandAllocator.Get(), NULL, IID_PPV_ARGS(&m_command_list)));
+			ThrowIfFailed(m_command_list->Close());
+		}
+
+		/* FENCE */
 		{
 			ThrowIfFailed(m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence)));
-			m_fenceValue = 1;
-
-			// Create an event handle to use for frame synchronization.
-			m_fenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
-			if (m_fenceEvent == nullptr)
+			m_fence_last_signaled_value = 0;
+			m_fence_event = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+			if (m_fence_event == nullptr)
 			{
 				ThrowIfFailed(HRESULT_FROM_WIN32(GetLastError()));
 			}
 		}
-	}
-	
-	inline void DirectX12::Init_Contexts()
-	{
-		//	멀튀 쑤레딩때 사용
+
+		/* SWAP CHAIN */
+		{
+			DXGI_SWAP_CHAIN_DESC1 desc;
+			{
+				ZeroMemory(&desc, sizeof(desc));
+				desc.BufferCount = FrameCount;
+				desc.Width = 0;
+				desc.Height = 0;
+				desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+				desc.Flags = DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT;
+				desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+				desc.SampleDesc.Count = 1;
+				desc.SampleDesc.Quality = 0;
+				desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+				desc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
+				desc.Scaling = DXGI_SCALING_STRETCH;
+				desc.Stereo = FALSE;
+			}
+
+			ComPtr<IDXGISwapChain1> swap_chain1 = NULL;
+			ThrowIfFailed(factory->CreateSwapChainForHwnd(m_command_queue.Get(), m_hwnd, &desc, NULL, NULL, &swap_chain1));
+			ThrowIfFailed(swap_chain1->QueryInterface(IID_PPV_ARGS(&m_swap_chain)));
+			swap_chain1->Release();
+			m_swap_chain->SetMaximumFrameLatency(FrameCount);
+			m_swap_chain_waitable_object = m_swap_chain->GetFrameLatencyWaitableObject();
+		}
+
+		/* RENDER TARGET RESOURCE ( BUFFER ) */
+		CreateRenderTarget();
+
+		factory->Release();
 	}
 
+	inline void DirectX12::CreateRenderTarget()
+	{
+		for (UINT i = 0; i < FrameCount; i++)
+		{
+			ComPtr<ID3D12Resource> back_buffer = NULL;
+			m_swap_chain->GetBuffer(i, IID_PPV_ARGS(&back_buffer));
+			m_device->CreateRenderTargetView(back_buffer.Get(), NULL, m_render_target_descriptors[i]);
+			m_render_target_resources[i].Attach(back_buffer.Detach());
+		}
+	}
+
+	inline void DirectX12::CleanDevice()
+	{
+		CleanRenderTarget();
+
+		if (m_swap_chain)
+		{
+			m_swap_chain->SetFullscreenState(FALSE, NULL);
+			m_swap_chain->Release();
+			m_swap_chain.Reset();
+		}
+
+		if (m_swap_chain_waitable_object)
+		{
+			CloseHandle(m_swap_chain_waitable_object);
+			m_swap_chain_waitable_object = NULL;
+		}
+
+		for (UINT i = 0; i < FrameCount; i++)
+		{
+			if (m_frame_contexts[i].CommandAllocator)
+			{
+				m_frame_contexts[i].CommandAllocator->Release();
+				m_frame_contexts[i].CommandAllocator.Reset();
+			}
+		}
+
+		if (m_command_queue)
+		{
+			m_command_queue->Release();
+			m_command_queue.Reset();
+		}
+
+		if (m_command_list)
+		{
+			m_command_list->Release();
+			m_command_list.Reset();
+		}
+
+		if (m_rtv_heap)
+		{
+			m_rtv_heap->Release();
+			m_rtv_heap.Reset();
+		}
+
+		if (m_srv_heap)
+		{
+			m_srv_heap->Release();
+			m_srv_heap.Reset();
+		}
+
+		if (m_fence)
+		{
+			m_fence->Release();
+			m_fence.Reset();
+		}
+
+		if (m_fence_event)
+		{
+			CloseHandle(m_fence_event);
+			m_fence_event = NULL;
+		}
+
+		if (m_device)
+		{
+			m_device->Release();
+			m_device.Reset();
+		}
+
+#if defined(_DEBUG)
+		ComPtr<IDXGIDebug1> debug;
+		if (SUCCEEDED(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&debug))))
+		{
+			debug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_SUMMARY);
+			debug->Release();
+			debug.Reset();
+		}
+#endif
+	}
+
+	inline void DirectX12::CleanRenderTarget()
+	{
+		WaitForLastSubmittedFrame();
+
+		for (UINT i = 0; i < FrameCount; i++)
+		{
+			if (m_render_target_resources[i])
+			{ 
+				m_render_target_resources[i]->Release();
+				m_render_target_resources[i].Reset();
+			}
+		}
+	}
+
+	inline FrameContext* DirectX12::WaitForNextFrameResources()
+	{
+		UINT nextFrameIndex = m_frame_index + 1;
+		m_frame_index = nextFrameIndex;
+
+		HANDLE waitableObjects[] = { m_swap_chain_waitable_object, NULL};
+		DWORD numWaitableObjects = 1;
+
+		FrameContext* frameCtx = &m_frame_contexts[nextFrameIndex % FrameCount];
+		UINT64 fenceValue = frameCtx->FenceValue;
+		if (fenceValue != 0) // means no fence was signaled
+		{
+			frameCtx->FenceValue = 0;
+			m_fence->SetEventOnCompletion(fenceValue, m_fence_event);
+			waitableObjects[1] = m_fence_event;
+			numWaitableObjects = 2;
+		}
+
+		WaitForMultipleObjects(numWaitableObjects, waitableObjects, TRUE, INFINITE);
+
+		return frameCtx;
+	}
+	
 	_Use_decl_annotations_ inline void DirectX12::GetHardwareAdapter(IDXGIFactory1* pFactory, IDXGIAdapter1** ppAdapter, bool requestHighPerformanceAdapter)
 	{
 		*ppAdapter = nullptr;
