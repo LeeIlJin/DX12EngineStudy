@@ -194,7 +194,7 @@ void imwin32::set_title(HWND h, std::wstring& s)
 
 void imwin32::show(HWND h)
 {
-	ShowWindow(h, SW_NORMAL);
+	ShowWindow(h, SW_SHOWDEFAULT);
 }
 
 void imwin32::hide(HWND h)

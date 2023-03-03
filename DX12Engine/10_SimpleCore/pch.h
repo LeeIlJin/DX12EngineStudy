@@ -21,14 +21,15 @@
 #include <string>
 #include <cassert>
 #include <functional>
-
+#include <stdexcept>
 #include <wrl.h>
 
 using namespace Microsoft::WRL;
+using Microsoft::WRL::ComPtr;
 
 //	Direct3D 12
 #include "Direct3DInclude.h"
 
-#include "ImGui/imgui_helper.hpp"
+
 
 #endif //PCH_H

@@ -21,6 +21,12 @@
     <ClInclude Include="imd3d.h">
       <Filter>d3d12</Filter>
     </ClInclude>
+    <ClInclude Include="single_thread_device.h">
+      <Filter>d3d12</Filter>
+    </ClInclude>
+    <ClInclude Include="global_functions.hpp">
+      <Filter>d3d12</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -30,6 +36,9 @@
       <Filter>win32</Filter>
     </ClCompile>
     <ClCompile Include="imd3d.cpp">
+      <Filter>d3d12</Filter>
+    </ClCompile>
+    <ClCompile Include="single_thread_device.cpp">
       <Filter>d3d12</Filter>
     </ClCompile>
   </ItemGroup>

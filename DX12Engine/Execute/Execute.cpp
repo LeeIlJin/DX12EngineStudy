@@ -44,7 +44,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM w, LPARAM l)
             return 0;
         break;
     case WM_PAINT:
-        d3d->Render(NULL);
+        d3d->Render();
         break;
     }
     return DefWindowProc(hwnd, msg, w, l);
@@ -53,8 +53,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM w, LPARAM l)
 void Initialize(HINSTANCE hInstance, LPWSTR lpCmdLine, int nCmdShow)
 {
     g_main = imwin32::create_default_window(hInstance, WndProc, 1280, 720, L"TestMain");
-    imd3d::create(g_main, &d3d);
+    imd3d::create_single_thread(&d3d, g_main, true);
 
+    //ShowWindow(g_main, 1);
     imwin32::show(g_main);
     imwin32::update(g_main);
 
@@ -108,9 +109,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         if (done)
             break;
 
-        d3d->FrameStart();
+        d3d->BeginFrame();
         Loop();
-        d3d->Render(NULL);
+        d3d->BeforeRender();
+        d3d->Render();
+        d3d->EndFrame();
     }
 
     Release();
